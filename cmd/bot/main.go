@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/bwmarrin/dgvoice"
 )
 
 func init() {
@@ -21,6 +22,7 @@ func init() {
 
 var token string
 var buffer = make([][]byte, 0)
+var pause = make(chan bool)
 
 func main() {
 
@@ -30,12 +32,12 @@ func main() {
 	}
 
 	// Load the sound file.
-	err := loadSound()
-	if err != nil {
-		fmt.Println("Error loading sound: ", err)
-		fmt.Println("Please copy $GOPATH/src/github.com/bwmarrin/examples/airhorn/airhorn.dca to this directory.")
-		return
-	}
+	// err := loadSound()
+	// if err != nil {
+	// 	fmt.Println("Error loading sound: ", err)
+	// 	fmt.Println("Please copy $GOPATH/src/github.com/bwmarrin/examples/airhorn/airhorn.dca to this directory.")
+	// 	return
+	// }
 
 	// Create a new Discord session using the provided bot token.
 	dg, err := discordgo.New("Bot " + token)
@@ -120,6 +122,14 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 			}
 		}
 	}
+
+	if strings.HasPrefix(m.Content, "!pause") {
+		pause <- true
+	}
+
+	if strings.HasPrefix(m.Content, "!resume") {
+		pause <- false
+	}
 }
 
 // This function will be called (due to AddHandler above) every time a new
@@ -140,8 +150,7 @@ func guildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {
 
 // loadSound attempts to load an encoded sound file from disk.
 func loadSound() error {
-
-	file, err := os.Open("airhorn.dca")
+	file, err := os.Open("./cmd/bot/output.dca")
 	if err != nil {
 		fmt.Println("Error opening dca file :", err)
 		return err
@@ -197,10 +206,16 @@ func playSound(s *discordgo.Session, guildID, channelID string) (err error) {
 	// Start speaking.
 	vc.Speaking(true)
 
-	// Send the buffer data.
-	for _, buff := range buffer {
-		vc.OpusSend <- buff
-	}
+	// // Send the buffer data.
+	// for i, buff := range buffer {
+	// 	if pause {
+	// 		buffer = buffer[i:]
+	// 		break
+	// 	}
+	// 	vc.OpusSend <- buff
+	// }
+
+	dgvoice.PlayAudioFile(vc, "./output.mp3", pause)
 
 	// Stop speaking
 	vc.Speaking(false)

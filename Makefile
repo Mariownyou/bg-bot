@@ -3,4 +3,4 @@
 token := $(shell cat .token)
 
 run:
-	go run . -t $(token)
+	go run ./cmd/bot -t $(token)

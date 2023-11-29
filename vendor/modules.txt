@@ -1,6 +1,9 @@
 # github.com/bitly/go-simplejson v0.5.1
 ## explicit; go 1.17
 github.com/bitly/go-simplejson
+# github.com/bwmarrin/dgvoice v0.0.0-20210225172318-caaac756e02e
+## explicit
+github.com/bwmarrin/dgvoice
 # github.com/bwmarrin/discordgo v0.27.1
 ## explicit; go 1.13
 github.com/bwmarrin/discordgo
@@ -59,3 +62,6 @@ golang.org/x/text/language
 golang.org/x/text/transform
 golang.org/x/text/unicode/norm
 golang.org/x/text/unicode/rangetable
+# layeh.com/gopus v0.0.0-20210501142526-1ee02d434e32
+## explicit; go 1.16
+layeh.com/gopus
