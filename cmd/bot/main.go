@@ -1,16 +1,15 @@
 package main
 
 import (
-	"encoding/binary"
 	"flag"
 	"fmt"
-	"io"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
 
+	"github.com/mariownyou/bg-bot/service"
 	"github.com/bwmarrin/discordgo"
 	"github.com/bwmarrin/dgvoice"
 )
@@ -21,7 +20,6 @@ func init() {
 }
 
 var token string
-var buffer = make([][]byte, 0)
 var pause = make(chan bool)
 
 func main() {
@@ -30,14 +28,6 @@ func main() {
 		fmt.Println("No token provided. Please run: airhorn -t <bot token>")
 		return
 	}
-
-	// Load the sound file.
-	// err := loadSound()
-	// if err != nil {
-	// 	fmt.Println("Error loading sound: ", err)
-	// 	fmt.Println("Please copy $GOPATH/src/github.com/bwmarrin/examples/airhorn/airhorn.dca to this directory.")
-	// 	return
-	// }
 
 	// Create a new Discord session using the provided bot token.
 	dg, err := discordgo.New("Bot " + token)
@@ -94,8 +84,35 @@ func messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 	}
 
 	// check if the message is "!airhorn"
-	if strings.HasPrefix(m.Content, "!airhorn") {
+	if strings.HasPrefix(m.Content, "!bg") {
+		// Find the channel that the message came from.
+		c, err := s.State.Channel(m.ChannelID)
+		if err != nil {
+			// Could not find channel.
+			return
+		}
 
+		// Find the guild for that channel.
+		g, err := s.State.Guild(c.GuildID)
+		if err != nil {
+			// Could not find guild.
+			return
+		}
+
+		// Look for the message sender in that guild's current voice states.
+		for _, vs := range g.VoiceStates {
+			if vs.UserID == m.Author.ID {
+				// Download video from YouTube
+				videoURL := strings.Split(m.Content, " ")[1] // handle error
+				name := service.DownloadYouTube(videoURL)
+				service.VideoConverter(name)
+
+				return
+			}
+		}
+	}
+
+	if strings.HasPrefix(m.Content, "!play") {
 		// Find the channel that the message came from.
 		c, err := s.State.Channel(m.ChannelID)
 		if err != nil {
@@ -148,49 +165,6 @@ func guildCreate(s *discordgo.Session, event *discordgo.GuildCreate) {
 	}
 }
 
-// loadSound attempts to load an encoded sound file from disk.
-func loadSound() error {
-	file, err := os.Open("./cmd/bot/output.dca")
-	if err != nil {
-		fmt.Println("Error opening dca file :", err)
-		return err
-	}
-
-	var opuslen int16
-
-	for {
-		// Read opus frame length from dca file.
-		err = binary.Read(file, binary.LittleEndian, &opuslen)
-
-		// If this is the end of the file, just return.
-		if err == io.EOF || err == io.ErrUnexpectedEOF {
-			err := file.Close()
-			if err != nil {
-				return err
-			}
-			return nil
-		}
-
-		if err != nil {
-			fmt.Println("Error reading from dca file :", err)
-			return err
-		}
-
-		// Read encoded pcm from dca file.
-		InBuf := make([]byte, opuslen)
-		err = binary.Read(file, binary.LittleEndian, &InBuf)
-
-		// Should not be any end of file errors
-		if err != nil {
-			fmt.Println("Error reading from dca file :", err)
-			return err
-		}
-
-		// Append encoded pcm data to the buffer.
-		buffer = append(buffer, InBuf)
-	}
-}
-
 // playSound plays the current buffer to the provided channel.
 func playSound(s *discordgo.Session, guildID, channelID string) (err error) {
 
@@ -206,16 +180,16 @@ func playSound(s *discordgo.Session, guildID, channelID string) (err error) {
 	// Start speaking.
 	vc.Speaking(true)
 
-	// // Send the buffer data.
-	// for i, buff := range buffer {
-	// 	if pause {
-	// 		buffer = buffer[i:]
-	// 		break
-	// 	}
-	// 	vc.OpusSend <- buff
-	// }
+	// play dircory
+	dir := "./.music/"
+	files, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
 
-	dgvoice.PlayAudioFile(vc, "./output.mp3", pause)
+	for _, file := range files {
+		dgvoice.PlayAudioFile(vc, dir + file.Name(), pause)
+	}
 
 	// Stop speaking
 	vc.Speaking(false)
